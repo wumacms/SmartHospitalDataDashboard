@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧医院数据大屏</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            background-color: #0a1a2a;
+            color: #e6e6e6;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            display: grid;
+            grid-template-rows: 60px 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .header {
+            grid-column: 1 / 5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(90deg, #0a2a3a, #153a4a);
+            padding: 0 20px;
+            border-radius: 6px;
+            border-bottom: 1px solid #2a7a9a;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #4ac6ff, #7ee0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 10px rgba(74, 198, 255, 0.5);
+        }
+
+        .header .time-display {
+            font-size: 16px;
+            color: #7ee0ff;
+        }
+
+        .panel {
+            background-color: rgba(16, 36, 52, 0.8);
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #2a4a5a;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #4ac6ff;
+            display: flex;
+            align-items: center;
+        }
+
+        .panel-title::before {
+            content: "";
+            display: inline-block;
+            width: 4px;
+            height: 16px;
+            background: linear-gradient(180deg, #4ac6ff, #2a7a9a);
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+
+        .panel-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .equipment-panel {
+            grid-row: 2 / 4;
+            grid-column: 1 / 2;
+        }
+
+        .safety-panel {
+            grid-row: 2 / 3;
+            grid-column: 2 / 3;
+        }
+
+        .alarm-panel {
+            grid-row: 2 / 3;
+            grid-column: 3 / 4;
+        }
+
+        .diagnosis-panel {
+            grid-row: 2 / 4;
+            grid-column: 4 / 5;
+        }
+
+        .monitor-panel {
+            grid-row: 3 / 4;
+            grid-column: 2 / 4;
+        }
+
+        .chart-container {
+            flex: 1;
+            width: 100%;
+        }
+
+        .status-list {
+            list-style-type: none;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px dashed #2a4a5a;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-normal {
+            background-color: #36c175;
+        }
+
+        .status-warning {
+            background-color: #ffcc00;
+        }
+
+        .status-alert {
+            background-color: #ff5252;
+            animation: blink 1s infinite;
+        }
+
+        .alert-list {
+            list-style-type: none;
+        }
+
+        .alert-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: rgba(255, 82, 82, 0.1);
+            border-left: 3px solid #ff5252;
+            border-radius: 3px;
+        }
+
+        .alert-time {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .alert-content {
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .data-card {
+            background-color: rgba(42, 122, 154, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .data-title {
+            font-size: 12px;
+            color: #7ee0ff;
+        }
+
+        .data-value {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .data-unit {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .data-trend {
+            font-size: 12px;
+            color: #36c175;
+        }
+
+        .data-trend.negative {
+            color: #ff5252;
+        }
+
+        @keyframes blink {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>智慧医院数据大屏</h1>
+            <div class="time-display" id="timeDisplay">2023年11月15日 15:30:45</div>
+        </div>
+
+        <div class="panel equipment-panel">
+            <div class="panel-title">设备运行管理</div>
+            <div class="panel-content">
+                <div class="chart-container" id="energyChart"></div>
+                <ul class="status-list">
+                    <li class="status-item">
+                        <span><span class="status-indicator status-normal"></span>能耗管控</span>
+                        <span>正常</span>
+                    </li>
+                    <li class="status-item">
+                        <span><span class="status-indicator status-normal"></span>净化空调自控管控</span>
+                        <span>正常</span>
+                    </li>
+                    <li class="status-item">
+                        <span><span class="status-indicator status-warning"></span>转化水自控管控</span>
+                        <span>警告</span>
+                    </li>
+                    <li class="status-item">
+                        <span><span class="status-indicator status-normal"></span>放射性废水管控</span>
+                        <span>正常</span>
+                    </li>
+                    <li class="status-item">
+                        <span><span class="status-indicator status-normal"></span>放射性磷气系统管控</span>
+                        <span>正常</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="panel safety-panel">
+            <div class="panel-title">控制安全管控</div>
+            <div class="panel-content">
+                <div class="stats-grid">
+                    <div class="data-card">
+                        <div class="data-title">环境监测点</div>
+                        <div class="data-value">28<span class="data-unit">个</span></div>
+                        <div class="data-trend">+2 新增</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-title">废水监测</div>
+                        <div class="data-value">0.32<span class="data-unit">m³</span></div>
+                        <div class="data-trend negative">+0.05 异常</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-title">辐射监测</div>
+                        <div class="data-value">12<span class="data-unit">人次</span></div>
+                        <div class="data-trend">正常</div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-title">安全运行</div>
+                        <div class="data-value">128<span class="data-unit">天</span></div>
+                        <div class="data-trend">无事故</div>
+                    </div>
+                </div>
+                <div class="chart-container" id="safetyChart"></div>
+            </div>
+        </div>
+
+        <div class="panel alarm-panel">
+            <div class="panel-title">紧急报警</div>
+            <div class="panel-content">
+                <ul class="alert-list">
+                    <li class="alert-item">
+                        <div class="alert-time">今天 14:25:36</div>
+                        <div class="alert-content">东区3层门禁异常访问告警</div>
+                    </li>
+                    <li class="alert-item">
+                        <div class="alert-time">今天 13:40:22</div>
+                        <div class="alert-content">废水监测系统pH值异常</div>
+                    </li>
+                    <li class="alert-item">
+                        <div class="alert-time">今天 11:15:08</div>
+                        <div class="alert-content">净化空调系统风速异常</div>
+                    </li>
+                </ul>
+                <div class="chart-container" id="alarmChart"></div>
+            </div>
+        </div>
+
+        <div class="panel diagnosis-panel">
+            <div class="panel-title">故障诊断</div>
+            <div class="panel-content">
+                <div class="data-card">
+                    <div class="data-title">设备健康指数</div>
+                    <div class="data-value">92.5<span class="data-unit">分</span></div>
+                    <div class="data-trend">+2.5 提升</div>
+                </div>
+                <div class="chart-container" id="healthChart"></div>
+                <ul class="status-list">
+                    <li class="status-item">
+                        <span>设备运行数据信息</span>
+                        <span>正常</span>
+                    </li>
+                    <li class="status-item">
+                        <span>监控系统</span>
+                        <span>正常</span>
+                    </li>
+                    <li class="status-item">
+                        <span>病房管控</span>
+                        <span>正常</span>
+                    </li>
+                    <li class="status-item">
+                        <span>生产管控</span>
+                        <span>正常</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="panel monitor-panel">
+            <div class="panel-title">实时监控</div>
+            <div class="panel-content">
+                <div class="chart-container" id="monitorChart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 更新时间显示
+        function updateTime() {
+            const now = new Date();
+            const options = {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            document.getElementById('timeDisplay').textContent = now.toLocaleDateString('zh-CN', options);
+        }
+
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // 初始化图表
+        function initCharts() {
+            // 能耗图表
+            const energyChart = echarts.init(document.getElementById('energyChart'));
+            energyChart.setOption({
+                tooltip: {
+                    trigger: 'axis'
+                },
+                grid: {
+                    top: 10,
+                    right: 10,
+                    bottom: 20,
+                    left: 40
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    axisLine: {
+                        lineStyle: {
+                            color: '#2a4a5a'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'kW·h',
+                    nameTextStyle: {
+                        color: '#7ee0ff'
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: '#2a4a5a'
+                        }
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: '#1c2e3c'
+                        }
+                    }
+                },
+                series: [{
+                    data: [820, 932, 901, 934, 890, 730, 820],
+                    type: 'line',
+                    smooth: true,
+                    lineStyle: {
+                        color: '#4ac6ff',
+                        width: 3
+                    },
+                    itemStyle: {
+                        color: '#4ac6ff'
+                    },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0,
+                            y: 0,
+                            x2: 0,
+                            y2: 1,
+                            colorStops: [{
+                                offset: 0,
+                                color: 'rgba(74, 198, 255, 0.3)'
+                            }, {
+                                offset: 1,
+                                color: 'rgba(74, 198, 255, 0.1)'
+                            }]
+                        }
+                    }
+                }]
+            });
+
+            // 安全管控图表
+            const safetyChart = echarts.init(document.getElementById('safetyChart'));
+            safetyChart.setOption({
+                tooltip: {
+                    trigger: 'item'
+                },
+                series: [{
+                    name: '安全监测',
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    itemStyle: {
+                        borderColor: '#0a1a2a',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: false
+                    },
+                    data: [
+                        { value: 68, name: '正常', itemStyle: { color: '#36c175' } },
+                        { value: 15, name: '警告', itemStyle: { color: '#ffcc00' } },
+                        { value: 5, name: '异常', itemStyle: { color: '#ff5252' } }
+                    ]
+                }]
+            });
+
+            // 报警统计图表
+            const alarmChart = echarts.init(document.getElementById('alarmChart'));
+            alarmChart.setOption({
+                tooltip: {
+                    trigger: 'axis'
+                },
+                grid: {
+                    top: 10,
+                    right: 10,
+                    bottom: 20,
+                    left: 40
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00'],
+                    axisLine: {
+                        lineStyle: {
+                            color: '#2a4a5a'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: {
+                        lineStyle: {
+                            color: '#2a4a5a'
+                        }
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: '#1c2e3c'
+                        }
+                    }
+                },
+                series: [{
+                    data: [2, 1, 1, 3, 2, 1],
+                    type: 'bar',
+                    itemStyle: {
+                        color: '#ff5252'
+                    }
+                }]
+            });
+
+            // 健康指数图表
+            const healthChart = echarts.init(document.getElementById('healthChart'));
+            healthChart.setOption({
+                series: [{
+                    type: 'gauge',
+                    startAngle: 180,
+                    endAngle: 0,
+                    min: 0,
+                    max: 100,
+                    splitNumber: 10,
+                    axisLine: {
+                        lineStyle: {
+                            width: 6,
+                            color: [
+                                [0.3, '#ff5252'],
+                                [0.7, '#ffcc00'],
+                                [1, '#36c175']
+                            ]
+                        }
+                    },
+                    pointer: {
+                        icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
+                        length: '12%',
+                        width: 8,
+                        offsetCenter: [0, '-60%'],
+                        itemStyle: {
+                            color: '#4ac6ff'
+                        }
+                    },
+                    axisTick: {
+                        length: 6,
+                        lineStyle: {
+                            color: 'auto',
+                            width: 1
+                        }
+                    },
+                    splitLine: {
+                        length: 10,
+                        lineStyle: {
+                            color: 'auto',
+                            width: 2
+                        }
+                    },
+                    axisLabel: {
+                        color: '#7ee0ff',
+                        fontSize: 10,
+                        distance: -30
+                    },
+                    detail: {
+                        valueAnimation: true,
+                        formatter: '{value}',
+                        color: '#7ee0ff',
+                        fontSize: 16,
+                        offsetCenter: [0, '-20%']
+                    },
+                    data: [{
+                        value: 92.5
+                    }]
+                }]
+            });
+
+            // 实时监控图表
+            const monitorChart = echarts.init(document.getElementById('monitorChart'));
+            monitorChart.setOption({
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ['温度', '湿度', '空气质量'],
+                    textStyle: {
+                        color: '#7ee0ff'
+                    },
+                    right: 10,
+                    top: 0
+                },
+                grid: {
+                    top: 30,
+                    right: 10,
+                    bottom: 20,
+                    left: 40
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00'],
+                    axisLine: {
+                        lineStyle: {
+                            color: '#2a4a5a'
+                        }
+                    }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '温度°C',
+                        position: 'left',
+                        axisLine: {
+                            lineStyle: {
+                                color: '#2a4a5a'
+                            }
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                color: '#1c2e3c'
+                            }
+                        }
+                    },
+                    {
+                        type: 'value',
+                        name: '湿度/%',
+                        position: 'right',
+                        axisLine: {
+                            lineStyle: {
+                                color: '#2a4a5a'
+                            }
+                        },
+                        splitLine: {
+                            show: false
+                        }
+                    }
+                ],
+                series: [
+                    {
+                        name: '温度',
+                        type: 'line',
+                        data: [22, 23, 24, 23, 22, 21],
+                        lineStyle: {
+                            color: '#ff5252',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#ff5252'
+                        }
+                    },
+                    {
+                        name: '湿度',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: [45, 48, 50, 52, 48, 45],
+                        lineStyle: {
+                            color: '#4ac6ff',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#4ac6ff'
+                        }
+                    },
+                    {
+                        name: '空气质量',
+                        type: 'line',
+                        data: [85, 88, 90, 92, 90, 88],
+                        lineStyle: {
+                            color: '#36c175',
+                            width: 2
+                        },
+                        itemStyle: {
+                            color: '#36c175'
+                        }
+                    }
+                ]
+            });
+
+            // 响应窗口调整
+            window.addEventListener('resize', function () {
+                energyChart.resize();
+                safetyChart.resize();
+                alarmChart.resize();
+                healthChart.resize();
+                monitorChart.resize();
+            });
+        }
+
+        // 页面加载完成后初始化图表
+        document.addEventListener('DOMContentLoaded', initCharts);
+
+        // 模拟实时数据更新
+        setInterval(function () {
+            // 这里可以添加实时数据更新的逻辑
+        }, 5000);
+    </script>
+</body>
+
+</html>
